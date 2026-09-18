@@ -1,8 +1,110 @@
+# Dependabot 設定
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# 方針（keiba-analysis を参考に、Claude routine 運用を前提として設計）:
+#   - 週次（月曜 06:00 JST）でまとめて PR を作り、レビュー負荷を下げる
+#     → Routine の定期実行より前に PR が出揃っているようにする
+#   - 用途ごとにグループ化し、minor/patch は 1 PR に集約。major は個別 PR で確認する
+#   - 新リリース直後の不具合を避けるため、リリースから数日置いてから更新する
+#   - セキュリティ更新は通常の更新と混ぜず、別グループで即座に判別できるようにする
+#
+# 注意: cooldown はセキュリティ更新の PR にも影響する（target-branch 未使用時）。
+#       緊急度の高い脆弱性は Dependabot Alerts を直接見て手動対応すること。
+#       除外したいパッケージがあれば cooldown.exclude に列挙する。
+
 version: 2
+
 updates:
-  - package-ecosystem: 'npm'
-    directory: '/'
+  # ---------------------------------------------------------------
+  # npm（yarn.lock、単一パッケージ）
+  # ---------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: 'weekly'
-    reviewers:
-      - 'ToruShimizu'
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Tokyo"
+    # 1 回の Routine セッションで扱う量の上限。
+    # 何件まで品質を保てるかは未検証なので、運用しながら調整する。
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      # セキュリティ更新は最優先で判別したいので独立させる。
+      # applies-to を省くと version-updates 扱いになるため明示する。
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      # Solid.js 本体・関連プラグイン
+      solid:
+        patterns:
+          - "solid-js"
+          - "solid-transition-group"
+          - "solid-icons"
+          - "solid-register"
+          - "vite-plugin-solid"
+        update-types: ["minor", "patch"]
+      # API クライアント（aspida）
+      api-client:
+        patterns:
+          - "@aspida/*"
+          - "axios"
+        update-types: ["minor", "patch"]
+      # UI・スタイリング
+      ui:
+        patterns:
+          - "@hope-ui/solid"
+          - "@stitches/core"
+        update-types: ["minor", "patch"]
+      # ビルド・Lint・テストまわりのツール
+      tooling:
+        patterns:
+          - "vite"
+          - "typescript"
+          - "eslint*"
+          - "prettier"
+          - "@typescript-eslint/*"
+          - "uvu"
+          - "@playwright/test"
+        update-types: ["minor", "patch"]
+      # 上記グループに当てはまらないその他の minor/patch はまとめて 1 PR に集約
+      misc:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------------------------------------------------------------
+  # GitHub Actions（playwright.yml / solid.yml）
+  # ---------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+    # semver 非対応のため default-days のみ有効。
+    cooldown:
+      default-days: 7
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      # 全アクションを 1 PR に集約（major も含める。CI で動作確認できるため）
+      actions:
+        patterns: ["*"]
