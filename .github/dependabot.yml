@@ -2,8 +2,7 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
 # 方針（keiba-analysis を参考に、Claude routine 運用を前提として設計）:
-#   - 週次（月曜 06:00 JST）でまとめて PR を作り、レビュー負荷を下げる
-#     → Routine の定期実行より前に PR が出揃っているようにする
+#   - 毎日 06:00 JST に PR を作り、Routine の定期実行より前に PR が出揃っているようにする
 #   - 用途ごとにグループ化し、minor/patch は 1 PR に集約。major は個別 PR で確認する
 #   - 新リリース直後の不具合を避けるため、リリースから数日置いてから更新する
 #   - セキュリティ更新は通常の更新と混ぜず、別グループで即座に判別できるようにする
@@ -21,8 +20,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "06:00"
       timezone: "Asia/Tokyo"
     # 1 回の Routine セッションで扱う量の上限。
@@ -88,8 +86,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "06:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
